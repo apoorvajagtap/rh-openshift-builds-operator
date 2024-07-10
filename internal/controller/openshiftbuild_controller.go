@@ -32,7 +32,8 @@ import (
 // OpenShiftBuildReconciler reconciles a OpenShiftBuild object
 type OpenShiftBuildReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme                   *runtime.Scheme
+	SharedResourceReconciler *SharedResourceReconciler
 }
 
 //+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds,verbs=get;list;watch;create;update;patch;delete
@@ -60,7 +61,13 @@ func (r *OpenShiftBuildReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// TODO(user): Import upstream Shipwright Operator Reconcile method
 
-	return ctrl.Result{}, nil
+	// Reconcile Shared Resources
+	result, err := r.SharedResourceReconciler.Reconcile(ctx, req)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return result, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
