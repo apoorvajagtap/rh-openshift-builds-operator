@@ -217,6 +217,7 @@ func (c *Controller) Start(ctx context.Context) error {
 		c.startWatches = nil
 
 		// Launch workers to process resources
+		fmt.Println("we are here!!")
 		c.LogConstructor(nil).Info("Starting workers", "worker count", c.MaxConcurrentReconciles)
 		wg.Add(c.MaxConcurrentReconciles)
 		for i := 0; i < c.MaxConcurrentReconciles; i++ {
