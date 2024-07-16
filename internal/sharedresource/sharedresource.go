@@ -23,7 +23,7 @@ func New(manifest manifestival.Manifest) *SharedResource {
 }
 
 // CreateSharedResources applies the required set of manifests
-func (sr *SharedResource) CreateSharedResources(owner *openshiftv1alpha1.OpenShiftBuild) error {
+func (sr *SharedResource) CreateSharedResources(owner *openshiftv1alpha1.OpenShiftBuild, delete bool) error {
 	logger := sr.Logger.WithValues("name", owner.Name)
 
 	// Applying transformers
@@ -38,6 +38,22 @@ func (sr *SharedResource) CreateSharedResources(owner *openshiftv1alpha1.OpenShi
 		return err
 	}
 
+	if !owner.GetDeletionTimestamp().IsZero() {
+		// remove finalizers
+		logger.Info("Removing finalizers")
+		sr.unsetFinalizer(*owner)
+	}
+
+	// if delete {
+	// 	// Remove finalizer
+	// 	sr.Logger.Info("Removing finalizers")
+	// 	sr.unsetFinalizer(*owner)
+
+	// 	// Delete manifests
+	// 	sr.Logger.Info("Deleting SharedResources...")
+	// 	return sr.Manifest.Delete()
+	// }
+
 	// Rolling out the resources described on the manifests
 	logger.Info("Applying manifests...")
 	return manifest.Apply()
@@ -45,6 +61,17 @@ func (sr *SharedResource) CreateSharedResources(owner *openshiftv1alpha1.OpenShi
 
 // TODO: Add deletion logic pertaining to the scenario when operator is being uninstalled.
 // i.e. if any CSI SharedResource object exists, the CRs shouldn't be deleted.
+// func (sr *SharedResource) DeleteSharedResources(owner *openshiftv1alpha1.OpenShiftBuild) error {
+// 	// Remove finalizer
+// 	sr.Logger.Info("Removing finalizers")
+// 	sr.unsetFinalizer(*owner)
+
+// 	// Delete manifests
+// 	sr.Logger.Info("Deleting SharedResources...")
+// 	return sr.Manifest.Delete()
+// 	// Delete the applied resources
+// 	return nil
+// }
 
 // InjectFinalizer appends finalizer to the passed resources metadata.
 func (sr *SharedResource) InjectFinalizer() manifestival.Transformer {
@@ -56,4 +83,15 @@ func (sr *SharedResource) InjectFinalizer() manifestival.Transformer {
 		}
 		return nil
 	}
+}
+
+// unsetFinalizer remove all instances of finalizer string.
+func (sr *SharedResource) unsetFinalizer(owner openshiftv1alpha1.OpenShiftBuild) {
+	finalizers := []string{}
+	for _, f := range owner.GetFinalizers() {
+		if f != common.OpenShiftBuildFinalizerName {
+			finalizers = append(finalizers, f)
+		}
+	}
+	owner.SetFinalizers(finalizers)
 }
