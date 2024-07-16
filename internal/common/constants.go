@@ -20,4 +20,5 @@ const (
 var (
 	ShipwrightBuildManifestPath         = filepath.Join("config", "shipwright", "build", "release")
 	ShipwrightBuildStrategyManifestPath = filepath.Join("config", "shipwright", "build", "strategy")
+	SharedResourceManifestPath          = filepath.Join("config", "sharedresource")
 )

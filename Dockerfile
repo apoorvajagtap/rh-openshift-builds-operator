@@ -38,7 +38,7 @@ WORKDIR /
 
 COPY --from=builder /workspace/operator .
 COPY config/shipwright/ config/shipwright/
-
+COPY config/sharedresource/ config/sharedresource/
 USER 65532:65532
 
 ENTRYPOINT ["/operator"]

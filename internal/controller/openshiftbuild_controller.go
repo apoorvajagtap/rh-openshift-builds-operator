@@ -20,8 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
-	"github.com/redhat-openshift-builds/operator/internal/common"
+	"github.com/go-logr/logr"
+	manifestivalclient "github.com/manifestival/controller-runtime-client"
+	"github.com/manifestival/manifestival"
+	"github.com/redhat-openshift-builds/operator/internal/sharedresource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,17 +38,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	openshiftv1alpha1 "github.com/redhat-openshift-builds/operator/api/v1alpha1"
-	shipwrightbuild "github.com/redhat-openshift-builds/operator/internal/shipwright/build"
+	"github.com/redhat-openshift-builds/operator/internal/common"
 	shipwrightv1alpha1 "github.com/shipwright-io/operator/api/v1alpha1"
 )
 
 // OpenShiftBuildReconciler reconciles a OpenShiftBuild object
 type OpenShiftBuildReconciler struct {
-	APIReader  client.Reader
-	Client     client.Client
-	Scheme     *apiruntime.Scheme
-	Shipwright *shipwrightbuild.ShipwrightBuild
+	Client         client.Client
+	Scheme         *apiruntime.Scheme
+	Logger         logr.Logger
+	SharedResource sharedresource.SharedResource
+	Shipwright     ShipwrightBuildReconciler
 }
+
+//+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds/finalizers,verbs=update
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,resourceNames=csi.sharedresource.openshift.io,verbs=get;list;delete;patch
+//+kubebuilder:rbac:groups=core,resources=services;pods;configmaps;secrets;events;namespaces,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=daemonsets,resourceNames=shared-resource-csi-driver-node,verbs=get;list;delete;patch
+//+kubebuilder:rbac:groups=apps,resources=deployments,resourceNames=shared-resource-csi-driver-webhook,verbs=get;list;delete;patch
+//+kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,resourceNames=shared-resource-csi-driver-pdb,verbs=get;list;delete;patch
+//+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,resourceNames=validation.webhook.csidriversharedresource,verbs=get;list;delete;patch
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitor,resourceNames=shared-resource-csi-driver-node-monitor,verbs=get;list;delete;patch
+//+kubebuilder:rbac:groups=sharedresource.openshift.io,resources=sharedconfigmaps;sharedsecrets,verbs=get;list;delete;create;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -93,6 +110,19 @@ func (r *OpenShiftBuildReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			Message: fmt.Sprintf("Failed to reconcile OpenShiftBuild: %v", err),
 		})
 		return ctrl.Result{}, r.Client.Status().Update(ctx, openShiftBuild)
+	}
+
+	// Reconcile Shared Resources
+	if err := r.ReconcileSharedResource(ctx, openShiftBuild); err != nil {
+		logger.Error(err, "failed to reconcile SharedResource")
+		apimeta.SetStatusCondition(&openShiftBuild.Status.Conditions, metav1.Condition{
+			Type:    openshiftv1alpha1.ConditionReady,
+			Status:  metav1.ConditionFalse,
+			Reason:  "Failed",
+			Message: fmt.Sprintf("Failed to reconcile OpenShiftBuild: %v", err),
+		})
+
+		return ctrl.Result{}, err
 	}
 
 	// Update status
@@ -152,6 +182,30 @@ func (r *OpenShiftBuildReconciler) CreateOrUpdate(ctx context.Context, client cl
 	})
 }
 
+// ReconcileSharedResource creates and updates SharedResource objects
+func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, openshiftBuild *openshiftv1alpha1.OpenShiftBuild) error {
+	logger := log.FromContext(ctx).WithValues("name", openshiftBuild.ObjectMeta.Name)
+
+	switch openshiftBuild.Spec.SharedResource.State {
+	case openshiftv1alpha1.Enabled:
+		logger.Info("Starting SharedResource reconciliation...")
+		if err := r.SharedResource.CreateSharedResources(openshiftBuild); err != nil {
+			logger.Error(err, "Failed enabling SharedResources")
+			return err
+		}
+	case openshiftv1alpha1.Disabled:
+		logger.Info("Disabling SharedResources...")
+		// if err := r.SharedResource.DeleteSharedResources(openshiftBuild); err != nil {
+		// 	logger.Error(err, "Failed disabling SharedResources")
+		// 	return err
+		// }
+	default:
+		return errors.New("unknown component state")
+	}
+
+	return nil
+}
+
 // HandleDeletion deletes objects created by the controller
 func (r *OpenShiftBuildReconciler) HandleDeletion(ctx context.Context, owner *openshiftv1alpha1.OpenShiftBuild) error {
 	logger := log.FromContext(ctx).WithValues("name", owner.Name)
@@ -192,6 +246,25 @@ func (r *OpenShiftBuildReconciler) ReconcileShipwrightBuild(ctx context.Context,
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OpenShiftBuildReconciler) SetupWithManager(mgr ctrl.Manager) error {
+
+	// Initialize Manifestival
+	manifestivalOptions := []manifestival.Option{
+		manifestival.UseLogger(r.Logger),
+		manifestival.UseClient(manifestivalclient.NewClient(mgr.GetClient())),
+	}
+
+	// Shared Resource manifests
+	sharedManifestPath := common.SharedResourceManifestPath
+	if path, ok := os.LookupEnv(common.SharedResourceManifestPath); ok {
+		sharedManifestPath = path
+	}
+	sharedManifest, err := manifestival.NewManifest(sharedManifestPath, manifestivalOptions...)
+	if err != nil {
+		return err
+	}
+
+	// Initialize Shared Resource
+	r.SharedResource = *sharedresource.New(sharedManifest)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&openshiftv1alpha1.OpenShiftBuild{}).
