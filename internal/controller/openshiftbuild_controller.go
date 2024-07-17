@@ -187,22 +187,16 @@ func (r *OpenShiftBuildReconciler) CreateOrUpdate(ctx context.Context, client cl
 // ReconcileSharedResource creates and updates SharedResource objects
 func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, openshiftBuild *openshiftv1alpha1.OpenShiftBuild) error {
 	logger := log.FromContext(ctx).WithValues("name", openshiftBuild.ObjectMeta.Name)
+	SharedResourceState := openshiftBuild.Spec.SharedResource.State
 
-	switch openshiftBuild.Spec.SharedResource.State {
-	case openshiftv1alpha1.Enabled:
-		logger.Info("Starting SharedResource reconciliation...")
-		if err := r.SharedResource.ApplySharedResources(openshiftBuild, openshiftv1alpha1.Enabled); err != nil {
-			logger.Error(err, "Failed enabling SharedResources")
-			return err
-		}
-	case openshiftv1alpha1.Disabled:
-		logger.Info("Disabling SharedResources...")
-		if err := r.SharedResource.ApplySharedResources(openshiftBuild, openshiftv1alpha1.Disabled); err != nil {
-			logger.Error(err, "Failed disabling SharedResources")
-			return err
-		}
-	default:
+	if SharedResourceState != openshiftv1alpha1.Enabled && SharedResourceState != openshiftv1alpha1.Disabled {
 		return errors.New("unknown component state")
+	}
+
+	logger.Info("Reconciling SharedResource...")
+	if err := r.SharedResource.ApplySharedResources(openshiftBuild, SharedResourceState); err != nil {
+		logger.Error(err, "Failed reconciling SharedResource...")
+		return err
 	}
 
 	return nil

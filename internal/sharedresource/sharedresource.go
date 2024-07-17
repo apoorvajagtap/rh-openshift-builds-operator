@@ -5,6 +5,7 @@ import (
 	"github.com/manifestival/manifestival"
 	openshiftv1alpha1 "github.com/redhat-openshift-builds/operator/api/v1alpha1"
 	"github.com/redhat-openshift-builds/operator/internal/common"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -40,25 +41,14 @@ func (sr *SharedResource) ApplySharedResources(owner *openshiftv1alpha1.OpenShif
 		return err
 	}
 
-	if !owner.GetDeletionTimestamp().IsZero() {
-		// removing only the finalizers as deletion will be taken care by the owner.
+	if !owner.GetDeletionTimestamp().IsZero() || state == openshiftv1alpha1.Disabled {
+		// Remove the finalizers if owner is set for deletion, or SharedResource.State is disabled
 		logger.Info("Removing finalizers")
-		sr.unsetFinalizer(&manifest)
+		return sr.deleteManifests(&manifest)
 	}
 
-	if state == openshiftv1alpha1.Disabled {
-		// Remove finalizer
-		logger.Info("Removing finalizers")
-		sr.unsetFinalizer(&manifest)
-	}
-
-	if state == openshiftv1alpha1.Enabled {
-		// Rolling out the resources described on the manifests
-		logger.Info("Applying manifests...")
-		return manifest.Apply()
-	}
-
-	return nil
+	logger.Info("Applying manifests...")
+	return manifest.Apply()
 }
 
 // InjectFinalizer appends finalizer to the passed resources metadata.
@@ -73,12 +63,13 @@ func (sr *SharedResource) InjectFinalizer() manifestival.Transformer {
 	}
 }
 
-// unsetFinalizer remove all instances of finalizer string.
-func (sr *SharedResource) unsetFinalizer(manifest *manifestival.Manifest) error {
+// deleteManifests removes the applied finalizer string from all manifest.Resources &
+// if SharedResource.State is disabled continues with the deletion of all resources.
+func (sr *SharedResource) deleteManifests(manifest *manifestival.Manifest) error {
 	mfc := sr.Manifest.Client
 	for _, res := range manifest.Resources() {
 		obj, err := mfc.Get(&res)
-		if err != nil {
+		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 
