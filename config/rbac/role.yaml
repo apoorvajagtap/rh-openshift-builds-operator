@@ -461,18 +461,6 @@ rules:
   - patch
   - update
 - apiGroups:
-  - shipwright.io
-  resources:
-  - clusterbuildstrategies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - sharedresource.openshift.io
   resources:
   - sharedconfigmaps
@@ -484,6 +472,18 @@ rules:
   - list
   - patch
   - update
+- apiGroups:
+  - shipwright.io
+  resources:
+  - clusterbuildstrategies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - storage.k8s.io
   resourceNames:

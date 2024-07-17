@@ -56,14 +56,6 @@ type OpenShiftBuildReconciler struct {
 //+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=operator.openshift.io,resources=openshiftbuilds/finalizers,verbs=update
-//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,resourceNames=csi.sharedresource.openshift.io,verbs=get;list;delete;patch
-//+kubebuilder:rbac:groups=core,resources=services;pods;configmaps;secrets;events;namespaces,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=apps,resources=daemonsets,resourceNames=shared-resource-csi-driver-node,verbs=get;list;delete;patch
-//+kubebuilder:rbac:groups=apps,resources=deployments,resourceNames=shared-resource-csi-driver-webhook,verbs=get;list;delete;patch
-//+kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,resourceNames=shared-resource-csi-driver-pdb,verbs=get;list;delete;patch
-//+kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,resourceNames=validation.webhook.csidriversharedresource,verbs=get;list;delete;patch
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitor,resourceNames=shared-resource-csi-driver-node-monitor,verbs=get;list;delete;patch
-//+kubebuilder:rbac:groups=sharedresource.openshift.io,resources=sharedconfigmaps;sharedsecrets,verbs=get;list;delete;create;update;patch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -116,15 +108,14 @@ func (r *OpenShiftBuildReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Reconcile Shared Resources
 	if err := r.ReconcileSharedResource(ctx, openShiftBuild); err != nil {
-		logger.Error(err, "failed to reconcile SharedResource")
+		logger.Error(err, "Failed to reconcile SharedResource")
 		apimeta.SetStatusCondition(&openShiftBuild.Status.Conditions, metav1.Condition{
 			Type:    openshiftv1alpha1.ConditionReady,
 			Status:  metav1.ConditionFalse,
 			Reason:  "Failed",
 			Message: fmt.Sprintf("Failed to reconcile OpenShiftBuild: %v", err),
 		})
-
-		return ctrl.Result{}, err
+		return ctrl.Result{}, r.Client.Status().Update(ctx, openShiftBuild)
 	}
 
 	// Update status
@@ -194,7 +185,7 @@ func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, 
 	}
 
 	logger.Info("Reconciling SharedResource...")
-	if err := r.SharedResource.ApplySharedResources(openshiftBuild, SharedResourceState); err != nil {
+	if err := r.SharedResource.UpdateSharedResources(openshiftBuild); err != nil {
 		logger.Error(err, "Failed reconciling SharedResource...")
 		return err
 	}
@@ -230,6 +221,10 @@ func (r *OpenShiftBuildReconciler) HandleDeletion(ctx context.Context, owner *op
 	logger := log.FromContext(ctx).WithValues("name", owner.Name)
 	if err := r.Shipwright.Delete(ctx, owner); err != nil && !apierrors.IsNotFound(err) {
 		logger.Error(err, "Failed to delete Shipwright Build")
+		return err
+	}
+	if err := r.SharedResource.UpdateSharedResources(owner); err != nil {
+		logger.Error(err, "Failed to delete SharedResource")
 		return err
 	}
 	if controllerutil.ContainsFinalizer(owner, common.OpenShiftBuildFinalizerName) {

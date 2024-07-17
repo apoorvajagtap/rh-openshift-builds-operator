@@ -24,16 +24,18 @@ func New(manifest manifestival.Manifest) *SharedResource {
 	}
 }
 
-// CreateSharedResources applies the required set of manifests
-func (sr *SharedResource) ApplySharedResources(owner *openshiftv1alpha1.OpenShiftBuild, state openshiftv1alpha1.State) error {
+// UpdateSharedResource transforms the manifests, and applies or deletes them based on SharedResource.State.
+func (sr *SharedResource) UpdateSharedResources(owner *openshiftv1alpha1.OpenShiftBuild) error {
 	logger := sr.Logger.WithValues("name", owner.Name)
-	sr.State = state
+	sr.State = owner.Spec.SharedResource.State
 
 	// Applying transformers
 	transformerfuncs := []manifestival.Transformer{}
-	transformerfuncs = append(transformerfuncs, sr.InjectFinalizer())
 	transformerfuncs = append(transformerfuncs, manifestival.InjectOwner(owner))
 	transformerfuncs = append(transformerfuncs, manifestival.InjectNamespace(common.OpenShiftBuildNamespaceName))
+	if sr.State == openshiftv1alpha1.Enabled && owner.DeletionTimestamp.IsZero() {
+		transformerfuncs = append(transformerfuncs, sr.InjectFinalizer(common.OpenShiftBuildFinalizerName))
+	}
 
 	manifest, err := sr.Manifest.Transform(transformerfuncs...)
 	if err != nil {
@@ -41,9 +43,9 @@ func (sr *SharedResource) ApplySharedResources(owner *openshiftv1alpha1.OpenShif
 		return err
 	}
 
-	if !owner.GetDeletionTimestamp().IsZero() || state == openshiftv1alpha1.Disabled {
-		// Remove the finalizers if owner is set for deletion, or SharedResource.State is disabled
-		logger.Info("Removing finalizers")
+	// Remove the finalizers if owner is set for deletion or SharedResource is disabled
+	// & perform the deletion if SharedResource is disabled.
+	if !owner.DeletionTimestamp.IsZero() || sr.State == openshiftv1alpha1.Disabled {
 		return sr.deleteManifests(&manifest)
 	}
 
@@ -52,19 +54,19 @@ func (sr *SharedResource) ApplySharedResources(owner *openshiftv1alpha1.OpenShif
 }
 
 // InjectFinalizer appends finalizer to the passed resources metadata.
-func (sr *SharedResource) InjectFinalizer() manifestival.Transformer {
+func (sr *SharedResource) InjectFinalizer(finalizer string) manifestival.Transformer {
 	return func(u *unstructured.Unstructured) error {
 		finalizers := u.GetFinalizers()
-		if !controllerutil.ContainsFinalizer(u, common.OpenShiftBuildFinalizerName) {
-			finalizers = append(finalizers, common.OpenShiftBuildFinalizerName)
+		if !controllerutil.ContainsFinalizer(u, finalizer) {
+			finalizers = append(finalizers, finalizer)
 			u.SetFinalizers(finalizers)
 		}
 		return nil
 	}
 }
 
-// deleteManifests removes the applied finalizer string from all manifest.Resources &
-// if SharedResource.State is disabled continues with the deletion of all resources.
+// deleteManifests removes the applied finalizer from all manifest.Resources &
+// deletes the resources if SharedResource.State is disabled.
 func (sr *SharedResource) deleteManifests(manifest *manifestival.Manifest) error {
 	mfc := sr.Manifest.Client
 	for _, res := range manifest.Resources() {
@@ -73,6 +75,7 @@ func (sr *SharedResource) deleteManifests(manifest *manifestival.Manifest) error
 			return err
 		}
 
+		// removes finalizers
 		if len(obj.GetFinalizers()) > 0 {
 			obj.SetFinalizers([]string{})
 			if err := mfc.Update(obj); err != nil {
@@ -80,11 +83,10 @@ func (sr *SharedResource) deleteManifests(manifest *manifestival.Manifest) error
 			}
 		}
 
-		// TODO: uncomment following after confirming the deletion behavior.
-		// if sr.State == openshiftv1alpha1.Disabled {
-		// 	sr.Logger.Info("Deleting SharedResources")
-		// 	mfc.Delete(&res)
-		// }
+		if sr.State == openshiftv1alpha1.Disabled {
+			sr.Logger.Info("Deleting SharedResources")
+			mfc.Delete(&res)
+		}
 	}
 	return nil
 }
