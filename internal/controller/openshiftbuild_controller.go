@@ -191,13 +191,13 @@ func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, 
 	switch openshiftBuild.Spec.SharedResource.State {
 	case openshiftv1alpha1.Enabled:
 		logger.Info("Starting SharedResource reconciliation...")
-		if err := r.SharedResource.CreateSharedResources(openshiftBuild, false); err != nil {
+		if err := r.SharedResource.ApplySharedResources(openshiftBuild, openshiftv1alpha1.Enabled); err != nil {
 			logger.Error(err, "Failed enabling SharedResources")
 			return err
 		}
 	case openshiftv1alpha1.Disabled:
 		logger.Info("Disabling SharedResources...")
-		if err := r.SharedResource.CreateSharedResources(openshiftBuild, true); err != nil {
+		if err := r.SharedResource.ApplySharedResources(openshiftBuild, openshiftv1alpha1.Disabled); err != nil {
 			logger.Error(err, "Failed disabling SharedResources")
 			return err
 		}
