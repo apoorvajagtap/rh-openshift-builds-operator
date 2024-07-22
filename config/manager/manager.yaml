@@ -82,6 +82,12 @@ spec:
             value: quay.io/redhat-user-workloads/rh-openshift-builds-tenant/openshift-builds/openshift-builds-waiter@sha256:e04a0308814b77ce475112b3a2cc569488d005b673c95ba5c0f30ef06f7a59c3
           - name: IMAGE_SHIPWRIGHT_SHP_BUILD_WEBHOOK
             value: quay.io/redhat-user-workloads/rh-openshift-builds-tenant/openshift-builds/openshift-builds-webhook@sha256:3402ebfffa2e40df8547d715c352b1761dafabddb510f20c29bb6804d89ec51e
+          - name: IMAGE_SHARED_NODE_DRIVER
+            value: quay.io/openshift/origin-csi-driver-shared-resource:latest
+          - name: IMAGE_SHARED_NODE_DRIVER_REGISTRAR
+            value: quay.io/openshift/origin-csi-node-driver-registrar:latest
+          - name: IMAGE_SHARED_WEBHOOK
+            value: quay.io/openshift/origin-csi-driver-shared-resource-webhook:latest
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

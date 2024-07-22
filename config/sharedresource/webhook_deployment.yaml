@@ -21,8 +21,7 @@ spec:
         name: shared-resource-csi-driver-webhook
     spec:
       containers:
-      # - image: ${WEBHOOK_IMAGE}
-      - image: quay.io/openshift/origin-csi-driver-shared-resource-webhook:latest
+      - image: IMAGE_SHARED_WEBHOOK
         imagePullPolicy: IfNotPresent
         name: shared-resource-csi-driver-webhook
         args:

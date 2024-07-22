@@ -6,8 +6,6 @@ import (
 	openshiftv1alpha1 "github.com/redhat-openshift-builds/operator/api/v1alpha1"
 	"github.com/redhat-openshift-builds/operator/internal/common"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // SharedResource type defines methods to Get, Create v1alpha1.SharedResource resource
@@ -28,13 +26,15 @@ func New(manifest manifestival.Manifest) *SharedResource {
 func (sr *SharedResource) UpdateSharedResources(owner *openshiftv1alpha1.OpenShiftBuild) error {
 	logger := sr.Logger.WithValues("name", owner.Name)
 	sr.State = owner.Spec.SharedResource.State
+	images := common.ImagesFromEnv(common.SharedResourceImagePrefix)
 
 	// Applying transformers
 	transformerfuncs := []manifestival.Transformer{}
 	transformerfuncs = append(transformerfuncs, manifestival.InjectOwner(owner))
 	transformerfuncs = append(transformerfuncs, manifestival.InjectNamespace(common.OpenShiftBuildNamespaceName))
+	transformerfuncs = append(transformerfuncs, common.InjectContainerImages(images))
 	if sr.State == openshiftv1alpha1.Enabled && owner.DeletionTimestamp.IsZero() {
-		transformerfuncs = append(transformerfuncs, sr.InjectFinalizer(common.OpenShiftBuildFinalizerName))
+		transformerfuncs = append(transformerfuncs, common.InjectFinalizer(common.OpenShiftBuildFinalizerName))
 	}
 
 	manifest, err := sr.Manifest.Transform(transformerfuncs...)
@@ -51,18 +51,6 @@ func (sr *SharedResource) UpdateSharedResources(owner *openshiftv1alpha1.OpenShi
 
 	logger.Info("Applying manifests...")
 	return manifest.Apply()
-}
-
-// InjectFinalizer appends finalizer to the passed resources metadata.
-func (sr *SharedResource) InjectFinalizer(finalizer string) manifestival.Transformer {
-	return func(u *unstructured.Unstructured) error {
-		finalizers := u.GetFinalizers()
-		if !controllerutil.ContainsFinalizer(u, finalizer) {
-			finalizers = append(finalizers, finalizer)
-			u.SetFinalizers(finalizers)
-		}
-		return nil
-	}
 }
 
 // deleteManifests removes the applied finalizer from all manifest.Resources &

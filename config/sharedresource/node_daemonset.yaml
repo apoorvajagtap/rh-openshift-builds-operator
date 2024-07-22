@@ -23,8 +23,7 @@ spec:
       serviceAccountName: csi-driver-shared-resource-plugin
       containers:
         - name: node-driver-registrar
-          # image: ${NODE_DRIVER_REGISTRAR_IMAGE}
-          image: quay.io/openshift/origin-csi-node-driver-registrar:latest
+          image: IMAGE_SHARED_NODE_DRIVER_REGISTRAR
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
@@ -53,8 +52,7 @@ spec:
               memory: 20Mi
           terminationMessagePolicy: FallbackToLogsOnError
         - name: hostpath
-          # image: ${DRIVER_IMAGE}
-          image: quay.io/openshift/origin-csi-driver-shared-resource:latest
+          image: IMAGE_SHARED_NODE_DRIVER
           # for development purposes; eventually switch to IfNotPresent
           imagePullPolicy: IfNotPresent
           command:
