@@ -174,11 +174,6 @@ func (r *OpenShiftBuildReconciler) CreateOrUpdate(ctx context.Context, client cl
 // ReconcileSharedResource creates and updates SharedResource objects
 func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, openshiftBuild *openshiftv1alpha1.OpenShiftBuild) error {
 	logger := log.FromContext(ctx).WithValues("name", openshiftBuild.ObjectMeta.Name)
-	SharedResourceState := openshiftBuild.Spec.SharedResource.State
-
-	if SharedResourceState != openshiftv1alpha1.Enabled && SharedResourceState != openshiftv1alpha1.Disabled {
-		return errors.New("unknown component state")
-	}
 
 	logger.Info("Reconciling SharedResource...")
 	if err := r.SharedResource.Reconcile(openshiftBuild); err != nil {

@@ -17,10 +17,6 @@ const (
 	ShipwrightBuildStrategyManifestPathEnv = "SHIPWRIGHT_BUILD_STRATEGY_MANIFEST_PATH"
 )
 
-const (
-	SharedResourceImagePrefix = "IMAGE_SHARED_"
-)
-
 var (
 	ShipwrightBuildManifestPath         = filepath.Join("config", "shipwright", "build", "release")
 	ShipwrightBuildStrategyManifestPath = filepath.Join("config", "shipwright", "build", "strategy")

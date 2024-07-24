@@ -167,7 +167,8 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	$(CONTAINER_TOOL) build -t ${IMG} .
+#	$(CONTAINER_TOOL) build -t ${IMG} .
+	docker-buildx build --platform=linux/amd64 -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
@@ -280,7 +281,8 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+#	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker-buildx build --platform=linux/amd64 -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -325,7 +327,7 @@ catalog-fbc-build: opm ## Build a file-based OLM catalog image.
 	cp -r config/catalog _output/
 	$(OPM) render $(BUNDLE_IMG) --output yaml > _output/catalog/openshift-builds-latest.yaml
 	$(OPM) validate _output/catalog
-	cd _output && $(CONTAINER_TOOL) build -f catalog.Dockerfile -t $(CATALOG_IMG) .
+	cd _output && docker-buildx build --platform=linux/amd64 -f catalog.Dockerfile -t $(CATALOG_IMG) .
 
 # Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
 # This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
