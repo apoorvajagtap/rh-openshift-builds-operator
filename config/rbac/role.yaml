@@ -5,6 +5,31 @@ metadata:
   name: operator
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - events
+  - namespaces
+  - pods
+  - secrets
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - admissionregistration.k8s.io
   resources:
   - validatingwebhookconfigurations
@@ -16,17 +41,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - admissionregistration.k8s.io
-  resourceNames:
-  - validation.webhook.csidriversharedresource
-  resources:
-  - validatingwebhookconfigurations
-  verbs:
-  - delete
-  - get
-  - list
-  - patch
 - apiGroups:
   - admissionregistration.k8s.io/v1beta1
   resources:
@@ -62,36 +76,42 @@ rules:
   - patch
   - update
 - apiGroups:
-  - apps
+  - apiextensions.k8s.io
   resourceNames:
-  - shared-resource-csi-driver-node
+  - sharedconfigmaps.sharedresource.openshift.io
+  - sharedsecrets.sharedresource.openshift.io
   resources:
-  - daemonsets
+  - customresourcedefinitions
   verbs:
+  - create
   - delete
   - get
   - list
   - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - apps
   resources:
   - deployments
   verbs:
   - create
-  - get
-  - list
-  - watch
-- apiGroups:
-  - apps
-  resourceNames:
-  - shared-resource-csi-driver-webhook
-  resources:
-  - deployments
-  verbs:
   - delete
   - get
   - list
-  - patch
+  - update
+  - watch
 - apiGroups:
   - apps
   resourceNames:
@@ -187,23 +207,6 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  - events
-  - namespaces
-  - pods
-  - secrets
-  - services
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - namespaces
   verbs:
   - create
@@ -244,15 +247,15 @@ rules:
   - update
 - apiGroups:
   - monitoring.coreos.com
-  resourceNames:
-  - shared-resource-csi-driver-node-monitor
   resources:
-  - servicemonitor
+  - servicemonitors
   verbs:
+  - create
   - delete
   - get
   - list
-  - patch
+  - update
+  - watch
 - apiGroups:
   - operator.openshift.io
   resources:
@@ -315,15 +318,15 @@ rules:
   - list
 - apiGroups:
   - policy
-  resourceNames:
-  - shared-resource-csi-driver-pdb
   resources:
   - poddisruptionbudgets
   verbs:
+  - create
   - delete
   - get
   - list
-  - patch
+  - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -353,6 +356,20 @@ rules:
   - delete
   - patch
   - update
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -461,17 +478,22 @@ rules:
   - patch
   - update
 - apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - privileged
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+- apiGroups:
   - sharedresource.openshift.io
   resources:
   - sharedconfigmaps
   - sharedsecrets
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
+  - watch
 - apiGroups:
   - shipwright.io
   resources:
@@ -486,12 +508,13 @@ rules:
   - watch
 - apiGroups:
   - storage.k8s.io
-  resourceNames:
-  - csi.sharedresource.openshift.io
   resources:
   - csidrivers
   verbs:
+  - create
   - delete
   - get
   - list
   - patch
+  - update
+  - watch
