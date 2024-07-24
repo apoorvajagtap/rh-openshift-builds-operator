@@ -4,7 +4,7 @@ metadata:
   name: shared-resource-node-privileged-binding
 subjects:
   - kind: ServiceAccount
-    name: csi-driver-shared-resource-plugin
+    name: csi-driver-shared-resource
     namespace: openshift-builds
 roleRef:
   kind: ClusterRole

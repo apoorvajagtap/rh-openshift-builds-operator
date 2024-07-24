@@ -23,16 +23,14 @@ func New(manifest manifestival.Manifest) *SharedResource {
 }
 
 // UpdateSharedResource transforms the manifests, and applies or deletes them based on SharedResource.State.
-func (sr *SharedResource) UpdateSharedResources(owner *openshiftv1alpha1.OpenShiftBuild) error {
+func (sr *SharedResource) Reconcile(owner *openshiftv1alpha1.OpenShiftBuild) error {
 	logger := sr.Logger.WithValues("name", owner.Name)
 	sr.State = owner.Spec.SharedResource.State
-	images := common.ImagesFromEnv(common.SharedResourceImagePrefix)
 
 	// Applying transformers
 	transformerfuncs := []manifestival.Transformer{}
 	transformerfuncs = append(transformerfuncs, manifestival.InjectOwner(owner))
 	transformerfuncs = append(transformerfuncs, manifestival.InjectNamespace(common.OpenShiftBuildNamespaceName))
-	transformerfuncs = append(transformerfuncs, common.InjectContainerImages(images))
 	if sr.State == openshiftv1alpha1.Enabled && owner.DeletionTimestamp.IsZero() {
 		transformerfuncs = append(transformerfuncs, common.InjectFinalizer(common.OpenShiftBuildFinalizerName))
 	}

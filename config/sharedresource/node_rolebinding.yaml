@@ -8,5 +8,5 @@ roleRef:
   name: shared-resource-secret-configmap-share-watch-sar-create
 subjects:
   - kind: ServiceAccount
-    name: csi-driver-shared-resource-plugin
+    name: csi-driver-shared-resource
     namespace: openshift-cluster-csi-drivers

@@ -1,4 +1,4 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-driver-shared-resource-plugin
+  name: csi-driver-shared-resource

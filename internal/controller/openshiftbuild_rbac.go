@@ -9,7 +9,8 @@ package controller
 //+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch;create;update;delete;patch
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=get;list;create;update;delete;watch
 //+kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources=services;pods;configmaps;secrets;events;namespaces,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=services;pods;events,verbs=get;list;create;update;patch
+//+kubebuilder:rbac:groups="",resources=configmaps;secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;create;update;delete;watch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;create;update;delete;watch
 //+kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;create;update;delete;watch

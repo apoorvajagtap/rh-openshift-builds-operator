@@ -49,7 +49,7 @@ type OpenShiftBuildReconciler struct {
 	Client         client.Client
 	Scheme         *apiruntime.Scheme
 	Logger         logr.Logger
-	SharedResource sharedresource.SharedResource
+	SharedResource *sharedresource.SharedResource
 	Shipwright     *shipwrightbuild.ShipwrightBuild
 }
 
@@ -181,7 +181,7 @@ func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, 
 	}
 
 	logger.Info("Reconciling SharedResource...")
-	if err := r.SharedResource.UpdateSharedResources(openshiftBuild); err != nil {
+	if err := r.SharedResource.Reconcile(openshiftBuild); err != nil {
 		logger.Error(err, "Failed reconciling SharedResource...")
 		return err
 	}
@@ -190,7 +190,7 @@ func (r *OpenShiftBuildReconciler) ReconcileSharedResource(ctx context.Context, 
 }
 
 // BootStrapSharedResource initializes the manifestival to apply Shared Resources
-func (r *OpenShiftBuildReconciler) BootStrapSharedResource(mgr ctrl.Manager) error {
+func (r *OpenShiftBuildReconciler) setupSharedResource(mgr ctrl.Manager) error {
 	// Initialize Manifestival
 	manifestivalOptions := []manifestival.Option{
 		manifestival.UseLogger(r.Logger),
@@ -208,7 +208,7 @@ func (r *OpenShiftBuildReconciler) BootStrapSharedResource(mgr ctrl.Manager) err
 	}
 
 	// Initialize Shared Resource
-	r.SharedResource = *sharedresource.New(sharedManifest)
+	r.SharedResource = sharedresource.New(sharedManifest)
 	return nil
 }
 
@@ -219,7 +219,7 @@ func (r *OpenShiftBuildReconciler) HandleDeletion(ctx context.Context, owner *op
 		logger.Error(err, "Failed to delete Shipwright Build")
 		return err
 	}
-	if err := r.SharedResource.UpdateSharedResources(owner); err != nil {
+	if err := r.SharedResource.Reconcile(owner); err != nil {
 		logger.Error(err, "Failed to delete SharedResource")
 		return err
 	}
@@ -258,7 +258,7 @@ func (r *OpenShiftBuildReconciler) ReconcileShipwrightBuild(ctx context.Context,
 func (r *OpenShiftBuildReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// bootstrap Shared Resources
-	if err := r.BootStrapSharedResource(mgr); err != nil {
+	if err := r.setupSharedResource(mgr); err != nil {
 		return err
 	}
 

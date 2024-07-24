@@ -7,15 +7,11 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
   - events
-  - namespaces
   - pods
-  - secrets
   - services
   verbs:
   - create
-  - delete
   - get
   - list
   - patch

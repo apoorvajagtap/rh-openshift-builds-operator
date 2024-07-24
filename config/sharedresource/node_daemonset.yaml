@@ -20,10 +20,10 @@ spec:
         target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
     spec:
       priorityClassName: system-node-critical
-      serviceAccountName: csi-driver-shared-resource-plugin
+      serviceAccountName: csi-driver-shared-resource
       containers:
         - name: node-driver-registrar
-          image: IMAGE_SHARED_NODE_DRIVER_REGISTRAR
+          image: registry.redhat.io/openshift4/ose-csi-node-driver-registrar@sha256:98341f0b80eeb6064540b61626acb6c6772c1e5c6991b67cfec3768cf459da14
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
@@ -52,7 +52,7 @@ spec:
               memory: 20Mi
           terminationMessagePolicy: FallbackToLogsOnError
         - name: hostpath
-          image: IMAGE_SHARED_NODE_DRIVER
+          image: quay.io/redhat-user-workloads/rh-openshift-builds-tenant/openshift-builds/openshift-builds-shared-resource@sha256:09c805ff3fcb41fdfc4848136261a1bfa3455d67266a463c45b2cf45c0722c7f
           # for development purposes; eventually switch to IfNotPresent
           imagePullPolicy: IfNotPresent
           command:
